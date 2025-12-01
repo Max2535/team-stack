@@ -21,14 +21,6 @@ func RegisterRoutes(app *fiber.App, cfg *config.Config, log *zap.SugaredLogger, 
 
 	v1 := api.Group("/v1")
 
-	v1.Get("/users", func(c *fiber.Ctx) error {
-		users, err := userSvc.List(c.Context())
-		if err != nil {
-			return response.Fail(c, fiber.StatusInternalServerError, "ERR_USERS", "cannot list users")
-		}
-		return response.OK(c, users)
-	})
-
 	v1.Post("/auth/login", func(c *fiber.Ctx) error {
 		var req struct {
 			Email    string `json:"email"`
@@ -45,5 +37,15 @@ func RegisterRoutes(app *fiber.App, cfg *config.Config, log *zap.SugaredLogger, 
 			"user":  u,
 			"token": token,
 		})
+	})
+
+	protected := v1.Group("", middleware.Authenticate(jwtm))
+
+	protected.Get("/users", middleware.RequireRoles("admin"), func(c *fiber.Ctx) error {
+		users, err := userSvc.List(c.Context())
+		if err != nil {
+			return response.Fail(c, fiber.StatusInternalServerError, "ERR_USERS", "cannot list users")
+		}
+		return response.OK(c, users)
 	})
 }

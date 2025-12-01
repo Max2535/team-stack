@@ -1,6 +1,8 @@
 resources:
   - ../../base
 
+namespace: team
+
 images:
   - name: ghcr.io/your-org/team-api
     newTag: v1.0.0

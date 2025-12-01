@@ -1,13 +1,13 @@
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/example/team-stack/backend/internal/app"
+	"github.com/example/team-stack/backend/internal/app"
 )
 
 func main() {
-    if err := app.Run(); err != nil {
-        log.Fatalf("fatal: %v", err)
-    }
+	if err := app.Run(); err != nil {
+		log.Fatalf("fatal: %v", err)
+	}
 }

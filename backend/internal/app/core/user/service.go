@@ -2,6 +2,9 @@ package user
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 
@@ -46,8 +49,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*model.Use
 	if err != nil || u == nil {
 		return nil, "", ErrInvalidLogin
 	}
-	// NOTE: replace with real password hash check
-	if password == "" {
+	if !secureComparePassword(u.PasswordHash, password) {
 		return nil, "", ErrInvalidLogin
 	}
 	token, err := s.jwt.Generate(u.ID, u.Role)
@@ -55,4 +57,22 @@ func (s *Service) Login(ctx context.Context, email, password string) (*model.Use
 		return nil, "", err
 	}
 	return u, token, nil
+}
+
+func secureComparePassword(storedHash, password string) bool {
+	if storedHash == "" || password == "" {
+		return false
+	}
+
+	expected, err := hex.DecodeString(storedHash)
+	if err != nil {
+		return false
+	}
+
+	derived := sha256.Sum256([]byte(password))
+	if len(expected) != len(derived) {
+		return false
+	}
+
+	return subtle.ConstantTimeCompare(expected, derived[:]) == 1
 }

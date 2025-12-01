@@ -1,68 +1,84 @@
 package app
 
 import (
-    "context"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-    "github.com/example/team-stack/backend/internal/app/adapters/cache"
-    dbad "github.com/example/team-stack/backend/internal/app/adapters/db"
-    "github.com/example/team-stack/backend/internal/app/adapters/event"
-    "github.com/example/team-stack/backend/internal/app/adapters/jwt"
-    "github.com/example/team-stack/backend/internal/app/core/user"
-    "github.com/example/team-stack/backend/internal/config"
-    "github.com/example/team-stack/backend/internal/db"
-    "github.com/example/team-stack/backend/internal/http"
-    "github.com/example/team-stack/backend/internal/telemetry"
-    "github.com/gofiber/fiber/v2"
+	"github.com/example/team-stack/backend/internal/app/adapters/cache"
+	dbad "github.com/example/team-stack/backend/internal/app/adapters/db"
+	"github.com/example/team-stack/backend/internal/app/adapters/event"
+	"github.com/example/team-stack/backend/internal/app/adapters/jwt"
+	"github.com/example/team-stack/backend/internal/app/core/user"
+	"github.com/example/team-stack/backend/internal/config"
+	"github.com/example/team-stack/backend/internal/db"
+	"github.com/example/team-stack/backend/internal/http"
+	"github.com/example/team-stack/backend/internal/telemetry"
+	"github.com/gofiber/fiber/v2"
 )
 
 func Run() error {
-    cfg, err := config.Load()
-    if err != nil {
-        return err
-    }
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
 
-    log := telemetry.NewLogger(cfg)
-    tp, shutdown := telemetry.InitTracer(cfg)
-    defer shutdown(context.Background())
-    defer tp.Shutdown(context.Background())
+	log, err := telemetry.NewLogger(cfg)
+	if err != nil {
+		return fmt.Errorf("init logger: %w", err)
+	}
+	defer func() {
+		if err := log.Sync(); err != nil {
+			log.Warnw("failed to sync logger", "error", err)
+		}
+	}()
 
-    pg, err := db.Connect(cfg)
-    if err != nil {
-        return err
-    }
-    defer pg.Close()
+	_, shutdown, err := telemetry.InitTracer(cfg)
+	if err != nil {
+		return fmt.Errorf("init tracer: %w", err)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			log.Warnw("failed to shutdown tracer", "error", err)
+		}
+	}()
 
-    cacheLayer := cache.NewRedis(cfg.RedisAddr)
-    eventBus := event.NewKafka(cfg.KafkaBrokers, cfg.KafkaTopic)
-    jwtm := jwt.NewJWTManager(cfg)
+	pg, err := db.Connect(cfg)
+	if err != nil {
+		return fmt.Errorf("connect to database: %w", err)
+	}
+	defer pg.Close()
 
-    userRepo := dbad.NewUserPostgresRepo(pg)
-    userSvc := user.NewService(userRepo, jwtm, eventBus)
+	cacheLayer := cache.NewRedis(cfg.RedisAddr)
+	eventBus := event.NewKafka(cfg.KafkaBrokers, cfg.KafkaTopic)
+	jwtm := jwt.NewJWTManager(cfg)
 
-    app := fiber.New(fiber.Config{
-        AppName: cfg.AppName,
-    })
+	userRepo := dbad.NewUserPostgresRepo(pg)
+	userSvc := user.NewService(userRepo, jwtm, eventBus)
 
-    http.RegisterRoutes(app, cfg, log, userSvc, jwtm, cacheLayer)
+	app := fiber.New(fiber.Config{
+		AppName: cfg.AppName,
+	})
 
-    errCh := make(chan error, 1)
-    go func() {
-        errCh <- app.Listen(cfg.Addr())
-    }()
+	http.RegisterRoutes(app, cfg, log, userSvc, jwtm, cacheLayer)
 
-    quit := make(chan os.Signal, 1)
-    signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- app.Listen(cfg.Addr())
+	}()
 
-    select {
-    case <-quit:
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-        defer cancel()
-        return app.ShutdownWithContext(ctx)
-    case err := <-errCh:
-        return err
-    }
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-quit:
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return app.ShutdownWithContext(ctx)
+	case err := <-errCh:
+		return fmt.Errorf("http server: %w", err)
+	}
 }

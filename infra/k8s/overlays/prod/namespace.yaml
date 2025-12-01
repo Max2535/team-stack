@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team
+  labels:
+    app.kubernetes.io/name: team
+    app.kubernetes.io/part-of: team-api

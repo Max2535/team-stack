@@ -7,6 +7,20 @@ This guide covers deploying the API to Kubernetes either directly with `kubectl`
 - `kustomize` (or `kubectl kustomize`) available locally
 - A container registry with push access for `ghcr.io/your-org/team-api` (or your chosen image)
 - Argo CD installed in the cluster (for GitOps deployment)
+- `docker` CLI for building and pushing the backend image
+
+## One-command deploy
+Run the helper script to build, push, and deploy a specific image tag in one go:
+
+```bash
+REGISTRY=ghcr.io/your-org/team-api TAG=v1.2.3 ./tooling/deploy.sh --argocd
+```
+
+The script will:
+- Build and push `REGISTRY:TAG` from the `backend` directory (skip with `--skip-build` if already pushed).
+- Render the production overlay with the provided image tag and apply it with `kubectl`.
+- Wait for the `team-api` Deployment rollout in the `team` namespace.
+- Optionally apply the Argo CD Application when `--argocd` is supplied.
 
 ## Prepare runtime configuration
 1. Review and set non-secret runtime values in `infra/k8s/base/api-configmap.yaml` (e.g., log level, Kafka topic, Redis and database tuning).

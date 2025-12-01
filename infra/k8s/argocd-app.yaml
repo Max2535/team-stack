@@ -2,10 +2,11 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: team-api
+  namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/team-stack
+    repoURL: https://github.com/your-org/team-stack.git
     targetRevision: main
     path: infra/k8s/overlays/prod
   destination:
@@ -15,3 +16,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -15,5 +15,29 @@ spec:
       containers:
         - name: api
           image: ghcr.io/your-org/team-api:latest
+          envFrom:
+            - configMapRef:
+                name: team-api-config
+            - secretRef:
+                name: team-api-secrets
           ports:
             - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

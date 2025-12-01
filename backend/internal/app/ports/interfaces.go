@@ -18,8 +18,14 @@ type UserRepository interface {
 	Create(ctx context.Context, u *model.User) error
 }
 
+type AuthClaims struct {
+	UserID string
+	Role   string
+}
+
 type JWTManager interface {
 	Generate(userID, role string) (string, error)
+	Verify(token string) (*AuthClaims, error)
 }
 
 type EventBus interface {

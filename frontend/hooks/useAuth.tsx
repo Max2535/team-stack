@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { getToken, logout as doLogout } from '@/lib/auth-client';

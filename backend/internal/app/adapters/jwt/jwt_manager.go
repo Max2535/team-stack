@@ -48,9 +48,6 @@ func (m *Manager) Verify(token string) (*ports.AuthClaims, error) {
 	if !parsed.Valid {
 		return nil, errors.New("invalid token")
 	}
-	if err := claims.Valid(); err != nil {
-		return nil, err
-	}
 
 	sub, _ := claims["sub"].(string)
 	role, _ := claims["role"].(string)

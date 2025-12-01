@@ -15,3 +15,5 @@ Mono-repo template for a professional team stack:
 - `docs/` – architecture and workflow docs
 
 See `docs/DEV_GUIDE.md` for how to run locally and team workflow.
+
+For deployment steps (Kubernetes and Argo CD), see `docs/DEPLOY.md`.

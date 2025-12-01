@@ -16,6 +16,7 @@ Options:
   --overlay <path>       Kustomize overlay path (default: infra/k8s/overlays/prod)
   --skip-build           Skip docker build/push (assumes the image already exists)
   --argocd               Also apply infra/k8s/argocd-app.yaml after kubectl deploy
+  --no-git-tag           Skip creating a git tag matching --tag after a successful deploy
   -h, --help             Show this help message
 USAGE
 }
@@ -37,6 +38,7 @@ TAG="${TAG:-latest}"
 OVERLAY="infra/k8s/overlays/prod"
 SKIP_BUILD=false
 APPLY_ARGO=false
+CREATE_GIT_TAG=true
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -50,6 +52,8 @@ while [[ $# -gt 0 ]]; do
       SKIP_BUILD=true; shift 1 ;;
     --argocd)
       APPLY_ARGO=true; shift 1 ;;
+    --no-git-tag)
+      CREATE_GIT_TAG=false; shift 1 ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -80,6 +84,36 @@ echo "Using overlay: $OVERLAY"
 die() {
   echo "error: $1" >&2
   exit 1
+}
+
+create_git_tag() {
+  if [[ "$CREATE_GIT_TAG" != true ]]; then
+    return 0
+  fi
+
+  if ! command_exists git; then
+    echo "git not available; skipping tag creation" >&2
+    return 0
+  fi
+
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "not inside a git repository; skipping tag creation" >&2
+    return 0
+  fi
+
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "working tree is not clean; skipping git tag" >&2
+    return 0
+  fi
+
+  if git tag --list "$TAG" | grep -q "^$TAG$"; then
+    echo "tag '$TAG' already exists; skipping" >&2
+    return 0
+  fi
+
+  git tag -a "$TAG" -m "Deploy $TAG"
+  echo "Created git tag '$TAG'."
+  echo "Push it with: git push --tags"
 }
 
 if [[ ! -d "$OVERLAY" ]]; then
@@ -130,6 +164,8 @@ if [[ "$APPLY_ARGO" == true ]]; then
   echo "Applying Argo CD Application..."
   kubectl apply -f infra/k8s/argocd-app.yaml
 fi
+
+create_git_tag
 
 echo "Deployment completed successfully."
 

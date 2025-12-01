@@ -21,6 +21,7 @@ The script will:
 - Render the production overlay with the provided image tag and apply it with `kubectl`.
 - Wait for the `team-api` Deployment rollout in the `team` namespace.
 - Optionally apply the Argo CD Application when `--argocd` is supplied.
+- Create a local git tag matching `TAG` after successful deployment by default (disable with `--no-git-tag`; requires a clean working tree).
 
 ## Prepare runtime configuration
 1. Review and set non-secret runtime values in `infra/k8s/base/api-configmap.yaml` (e.g., log level, Kafka topic, Redis and database tuning).

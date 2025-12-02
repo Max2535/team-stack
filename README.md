@@ -24,5 +24,6 @@ GitHub Actions runs automated checks for every PR and push to `main`:
 
 - **Backend tests**: `go test ./...` in `backend/` on Go 1.22.
 - **Frontend lint**: `npm run lint` in `frontend/` on Node.js 20.
+- Frontend installs refresh the lockfile (`npm install --package-lock-only --legacy-peer-deps`) before `npm ci` to avoid peer/dependency skew when the lock gets stale.
 - **Kustomize validation**: renders `infra/k8s/overlays/prod` to ensure manifests stay valid.
 - **Docker publish**: builds and pushes `ghcr.io/<org>/team-api:<ref>` from `backend/` on pushes to `main` or version tags.

@@ -22,9 +22,11 @@ Frontend:
 
 ```bash
 cd frontend
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
+
+If `npm ci` complains about missing entries in the lockfile, run `npm install --package-lock-only --legacy-peer-deps` first to refresh it, then re-run `npm ci`.
 
 ## Branching Strategy
 

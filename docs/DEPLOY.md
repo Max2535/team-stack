@@ -150,6 +150,25 @@ kubectl logs -n team <pod-name>
 ```
 
 ### Test API Endpoints
+
+#### Option 1: Via Ingress (Recommended)
+If you have Nginx Ingress installed:
+
+```bash
+# Using Host header
+curl -H "Host: api.local" http://localhost/api/health
+
+# Or add api.local to /etc/hosts first
+echo "127.0.0.1 api.local" | sudo tee -a /etc/hosts
+
+# Then access directly
+curl http://api.local/api/health
+
+# Expected response:
+# {"success":true,"data":{"status":"ok"}}
+```
+
+#### Option 2: Via Port Forward
 ```bash
 # Port forward to access locally
 kubectl port-forward -n team svc/team-api 8080:80
@@ -236,4 +255,152 @@ kubectl delete namespace team
 
 # Delete specific resources
 kubectl delete -k infra/k8s/base -n team
+```
+
+## API Usage Examples
+
+### Available Endpoints
+
+#### 1. Health Check (Public)
+```bash
+# Via Ingress
+curl http://api.local/api/health
+
+# Via Port Forward
+curl http://localhost:8080/api/health
+
+# Response
+{
+  "success": true,
+  "data": {
+    "status": "ok"
+  }
+}
+```
+
+#### 2. Login (Public)
+```bash
+# Request
+curl -X POST http://api.local/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "password123"
+  }'
+
+# Response
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user-id",
+      "email": "user@example.com",
+      "role": "admin"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+#### 3. List Users (Protected - Admin Only)
+```bash
+# First, login and get token
+TOKEN=$(curl -s -X POST http://api.local/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}' \
+  | jq -r '.data.token')
+
+# Then, call protected endpoint
+curl http://api.local/api/v1/users \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response
+{
+  "success": true,
+  "data": [
+    {
+      "id": "user-1",
+      "email": "admin@example.com",
+      "role": "admin"
+    },
+    {
+      "id": "user-2",
+      "email": "user@example.com",
+      "role": "user"
+    }
+  ]
+}
+```
+
+### Testing with Different Methods
+
+#### Using curl
+```bash
+# GET request
+curl http://api.local/api/health
+
+# POST request with JSON
+curl -X POST http://api.local/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"pass123"}'
+
+# With authentication
+curl http://api.local/api/v1/users \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Using httpie (if installed)
+```bash
+# Install httpie
+brew install httpie  # macOS
+# or
+pip install httpie
+
+# GET request
+http http://api.local/api/health
+
+# POST request
+http POST http://api.local/api/v1/auth/login \
+  email=test@example.com \
+  password=pass123
+
+# With authentication
+http http://api.local/api/v1/users \
+  Authorization:"Bearer YOUR_TOKEN"
+```
+
+#### Using Postman or Insomnia
+1. **Import Collection**
+   - Base URL: `http://api.local` (or `http://localhost:8080` if using port-forward)
+
+2. **Setup Environment Variables**
+   - `base_url`: `http://api.local`
+   - `token`: (will be set after login)
+
+3. **Test Endpoints**
+   - Health: `GET {{base_url}}/api/health`
+   - Login: `POST {{base_url}}/api/v1/auth/login`
+   - Users: `GET {{base_url}}/api/v1/users` with header `Authorization: Bearer {{token}}`
+
+### Rate Limiting
+The API Gateway (Nginx Ingress) has rate limiting enabled:
+- **100 requests per second** per IP
+- **50 concurrent connections** per IP
+
+If you exceed these limits, you'll receive:
+```bash
+HTTP/1.1 503 Service Temporarily Unavailable
+```
+
+### CORS Support
+The API supports CORS for cross-origin requests:
+- Allowed origins: `*` (all origins)
+- Allowed methods: `GET, POST, PUT, DELETE, PATCH, OPTIONS`
+- Allowed headers: `Authorization, Content-Type, X-Requested-With`
+
+Test CORS preflight:
+```bash
+curl -v -X OPTIONS http://api.local/api/health \
+  -H "Origin: http://example.com" \
+  -H "Access-Control-Request-Method: POST"
 ```

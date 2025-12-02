@@ -87,7 +87,12 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: |
+          # Clean install to ensure all types are installed
+          npm ci
+          # Verify types are installed
+          npm list @types/react @types/node || echo "Types not found in package-lock.json, installing..."
+          npm install --save-dev @types/node@^20.0.0 @types/react@^18.3.0 @types/react-dom@^18.3.0 || true
 
       - name: Run ESLint
         working-directory: frontend
@@ -114,7 +119,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: |
+          npm ci
+          npm install --save-dev @types/node@^20.0.0 @types/react@^18.3.0 @types/react-dom@^18.3.0 || true
 
       - name: Build
         working-directory: frontend

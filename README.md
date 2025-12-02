@@ -22,7 +22,7 @@ For deployment steps (Kubernetes and Argo CD), see `docs/DEPLOY.md`.
 
 GitHub Actions runs automated checks for every PR and push to `main`:
 
-- **Backend tests**: `go test ./...` in `backend/` on Go 1.25.
+- **Backend tests**: `go test ./...` in `backend/` on Go 1.22.
 - **Frontend lint**: `npm run lint` in `frontend/` on Node.js 20.
 - **Kustomize validation**: renders `infra/k8s/overlays/prod` to ensure manifests stay valid.
 - **Docker publish**: builds and pushes `ghcr.io/<org>/team-api:<ref>` from `backend/` on pushes to `main` or version tags.

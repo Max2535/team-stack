@@ -8,11 +8,13 @@ import (
 
 type UserService interface {
 	List(ctx context.Context) ([]model.User, error)
+	GetByID(ctx context.Context, id string) (*model.User, error)
 	Create(ctx context.Context, u *model.User) error
 	Login(ctx context.Context, email, password string) (*model.User, string, error)
 }
 
 type UserRepository interface {
+	FindByID(ctx context.Context, id string) (*model.User, error)
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
 	List(ctx context.Context) ([]model.User, error)
 	Create(ctx context.Context, u *model.User) error

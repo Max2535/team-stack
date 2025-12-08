@@ -17,6 +17,15 @@ func NewUserPostgresRepo(db *sqlx.DB) ports.UserRepository {
 	return &UserPostgresRepo{db: db}
 }
 
+func (r *UserPostgresRepo) FindByID(ctx context.Context, id string) (*model.User, error) {
+	var u model.User
+	err := r.db.GetContext(ctx, &u, `SELECT * FROM users WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
 func (r *UserPostgresRepo) FindByEmail(ctx context.Context, email string) (*model.User, error) {
 	var u model.User
 	err := r.db.GetContext(ctx, &u, `SELECT * FROM users WHERE email = $1`, email)

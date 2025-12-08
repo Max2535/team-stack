@@ -5,6 +5,7 @@ import (
 	"github.com/example/team-stack/backend/internal/config"
 	"github.com/example/team-stack/backend/internal/http/middleware"
 	"github.com/example/team-stack/backend/pkg/response"
+	"github.com/example/team-stack/backend/pkg/validator"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
@@ -29,6 +30,15 @@ func RegisterRoutes(app *fiber.App, cfg *config.Config, log *zap.SugaredLogger, 
 		if err := c.BodyParser(&req); err != nil {
 			return response.Fail(c, fiber.StatusBadRequest, "ERR_BAD_REQUEST", "invalid body")
 		}
+
+		// Validate input
+		if errs := validator.ValidateLoginRequest(validator.LoginRequest{
+			Email:    req.Email,
+			Password: req.Password,
+		}); errs.HasErrors() {
+			return response.Fail(c, fiber.StatusBadRequest, "ERR_VALIDATION", errs.Error())
+		}
+
 		u, token, err := userSvc.Login(c.Context(), req.Email, req.Password)
 		if err != nil {
 			return response.Fail(c, fiber.StatusUnauthorized, "ERR_LOGIN", "invalid credentials")
@@ -40,6 +50,15 @@ func RegisterRoutes(app *fiber.App, cfg *config.Config, log *zap.SugaredLogger, 
 	})
 
 	protected := v1.Group("", middleware.Authenticate(jwtm))
+
+	protected.Get("/me", func(c *fiber.Ctx) error {
+		claims := c.Locals("authClaims").(*ports.AuthClaims)
+		user, err := userSvc.GetByID(c.Context(), claims.UserID)
+		if err != nil {
+			return response.Fail(c, fiber.StatusNotFound, "ERR_USER_NOT_FOUND", "user not found")
+		}
+		return response.OK(c, user)
+	})
 
 	protected.Get("/users", middleware.RequireRoles("admin"), func(c *fiber.Ctx) error {
 		users, err := userSvc.List(c.Context())

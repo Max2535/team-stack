@@ -2,19 +2,21 @@ package user
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 
 	"github.com/example/team-stack/backend/internal/app/core/model"
 	"github.com/example/team-stack/backend/internal/app/ports"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
 	ErrInvalidLogin = errors.New("invalid email or password")
 )
+
+// BcryptCost is the cost parameter for bcrypt hashing
+// Default is 10, increase for more security (slower)
+const BcryptCost = 10
 
 type Service struct {
 	repo ports.UserRepository
@@ -28,6 +30,10 @@ func NewService(repo ports.UserRepository, jwt ports.JWTManager, bus ports.Event
 
 func (s *Service) List(ctx context.Context) ([]model.User, error) {
 	return s.repo.List(ctx)
+}
+
+func (s *Service) GetByID(ctx context.Context, id string) (*model.User, error) {
+	return s.repo.FindByID(ctx, id)
 }
 
 func (s *Service) Create(ctx context.Context, u *model.User) error {
@@ -49,7 +55,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*model.Use
 	if err != nil || u == nil {
 		return nil, "", ErrInvalidLogin
 	}
-	if !secureComparePassword(u.PasswordHash, password) {
+	if !CheckPassword(u.PasswordHash, password) {
 		return nil, "", ErrInvalidLogin
 	}
 	token, err := s.jwt.Generate(u.ID, u.Role)
@@ -59,20 +65,17 @@ func (s *Service) Login(ctx context.Context, email, password string) (*model.Use
 	return u, token, nil
 }
 
-func secureComparePassword(storedHash, password string) bool {
-	if storedHash == "" || password == "" {
-		return false
-	}
-
-	expected, err := hex.DecodeString(storedHash)
+// HashPassword creates a bcrypt hash of the password
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), BcryptCost)
 	if err != nil {
-		return false
+		return "", err
 	}
+	return string(bytes), nil
+}
 
-	derived := sha256.Sum256([]byte(password))
-	if len(expected) != len(derived) {
-		return false
-	}
-
-	return subtle.ConstantTimeCompare(expected, derived[:]) == 1
+// CheckPassword compares a bcrypt hashed password with its possible plaintext equivalent
+func CheckPassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
 }

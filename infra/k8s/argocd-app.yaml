@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Max2535/team-stack.git
-    targetRevision: feature/deploy_k8s
+    targetRevision: main
     path: infra/k8s/base
   destination:
     server: https://kubernetes.default.svc
